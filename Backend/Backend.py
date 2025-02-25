@@ -6,6 +6,7 @@ import base64
 import re
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
+from huggingface_hub import InferenceClient
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -22,7 +23,7 @@ media_collection = db["media"]
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  
+    allow_origins=["http://localhost:5173"],  # Frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,6 +83,70 @@ async def generate(request: PromptRequest):
     except Exception as e:
         print("Error:", e)  
         raise HTTPException(status_code=500, detail=str(e))
+
+HF_API_KEY = "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"
+hf_client = InferenceClient(provider="together", api_key=HF_API_KEY)
+
+class HFRequest(BaseModel):
+    message: str
+
+@app.post("/chat-huggingface")
+async def chat_huggingface(request: HFRequest):
+    try:
+        print(f"Received message: {request.message}")
+
+        messages = [{"role": "user", "content": request.message}]
+
+        completion = hf_client.chat.completions.create(
+            model="Qwen/Qwen2.5-7B-Instruct",
+            messages=messages,
+            max_tokens=500,
+        )
+
+        response_text = completion.choices[0].message.content
+        return {"response": response_text}
+    except Exception as e:
+        print(f"Error communicating with Hugging Face API: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error communicating with Hugging Face API: {str(e)}")
+    
+@app.post("/analyze-image-huggingface")
+async def analyze_image_huggingface(file: UploadFile = File(...)):
+    try:
+        image_data = await file.read()
+        base64_image = base64.b64encode(image_data).decode("utf-8")
+
+        messages = [{"role": "user", "content": "Analyze this image", "image": base64_image}]
+        
+        completion = hf_client.chat.completions.create(
+            model="Qwen/Qwen2.5-7B-Instruct",
+            messages=messages,
+            max_tokens=500,
+        )
+
+        response_text = completion.choices[0].message.content
+        return {"response": response_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing image: {str(e)}")
+
+@app.post("/analyze-video-huggingface")
+async def analyze_video_huggingface(file: UploadFile = File(...)):
+    try:
+        video_data = await file.read()
+        base64_video = base64.b64encode(video_data).decode("utf-8")
+
+        messages = [{"role": "user", "content": "Analyze this video actions in 200 words", "video": base64_video}]
+        
+        completion = hf_client.chat.completions.create(
+            model="Qwen/Qwen2.5-7B-Instruct",
+            messages=messages,
+            max_tokens=500,
+        )
+
+        response_text = completion.choices[0].message.content
+        return {"response": response_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing video: {str(e)}")
+
 
 @app.post("/analyze-image")
 async def analyze_image(file: UploadFile = File(...)):
@@ -144,7 +209,6 @@ def serialize_objectid(obj):
     if isinstance(obj, ObjectId):
         return str(obj)
     raise TypeError(f"Type {obj} not serializable")
-
 
 @app.get("/prompts")
 async def get_prompts():

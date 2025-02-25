@@ -6,9 +6,18 @@ import { PromptContext } from "../../Context/Context"; // Ensure this path is co
 
 const Sidebar = ({ setInput, setResponse }) => {
   const [extended, setExtended] = useState(false);
-  const { recentPrompts, setRecentPrompts, recentResult, setRecentResult } =
-    useContext(PromptContext);
-  const { query, setQuery } = useContext(PromptContext);
+
+  // Accessing context values correctly
+  const {
+    recentPrompts,
+    setRecentPrompts,
+    recentResult,
+    setRecentResult,
+    query,
+    setQuery,
+    selectedOption,
+    setSelectedOption,
+  } = useContext(PromptContext);
 
   useEffect(() => {
     const fetchPrompts = async () => {
@@ -36,6 +45,11 @@ const Sidebar = ({ setInput, setResponse }) => {
     } catch (error) {
       console.error("Error fetching prompt response:", error);
     }
+  };
+
+  // Handle the change in the selected option (Gemini or Qwen)
+  const handleOptionChange = (event) => {
+    setSelectedOption(event.target.value);
   };
 
   return (
@@ -71,6 +85,20 @@ const Sidebar = ({ setInput, setResponse }) => {
           </div>
         )}
       </div>
+
+      {/* Dropdown for selecting Gemini or Qwen */}
+      <div className="dropdown">
+        <label htmlFor="option-select">Select Option: </label>
+        <select
+          id="option-select"
+          value={selectedOption}
+          onChange={handleOptionChange}
+        >
+          <option value="Gemini">Gemini</option>
+          <option value="Qwen">Qwen</option>
+        </select>
+      </div>
+
       <div className="bottom">
         <div className="bottom-item recent-entry">
           <img src={assets.question_icon} alt="" />

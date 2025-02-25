@@ -7,10 +7,13 @@ export const PromptProvider = ({ children }) => {
   const [recentPrompts, setRecentPrompts] = useState([]);
   const [recentResult, setRecentResult] = useState(null); // Assuming it's a single response
   const [query, setQuery] = useState(""); // Assuming it's a single query string
+  const [selectedOption, setSelectedOption] = useState("Gemini");
 
   return (
     <PromptContext.Provider
       value={{
+        selectedOption,
+        setSelectedOption,
         recentPrompts,
         setRecentPrompts,
         recentResult,

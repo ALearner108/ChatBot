@@ -50,7 +50,7 @@ const Main = () => {
   const [selectedPromptResponse, setSelectedPromptResponse] = useState(null);
   const { recentPrompts } = useContext(PromptContext);
   const { recentResult } = useContext(PromptContext); // New state for the response
-  const { query } = useContext(PromptContext);
+  const { query, selectedOption } = useContext(PromptContext);
 
   const fetchHistory = async () => {
     try {
@@ -68,49 +68,63 @@ const Main = () => {
 
   useEffect(() => {
     if (recentPrompts && query !== "") {
-      // Check if recentResult is not empty
       setBlank(false);
       setMediaPreview(false);
-      console.log("Inside working domain");
       setResultData(recentResult);
-      console.log(query);
       setRecentPrompt(query);
     }
   }, [recentResult, query]);
 
   const sendPromptToBackend = async () => {
     if (selectedFile) {
-      handleMediaSubmit();
+      handleMediaSubmit(); // Handle file upload if a file is selected
     } else {
-      setInput("");
-      setBlank(false);
-      setResultData("");
-      setMediaPreview(null);
-      setIsLoading(true);
-      console.log("Inside API call");
+      setInput(""); // Clear input text
+      setBlank(false); // Set the blank state to false
+      setResultData(""); // Clear previous result
+      setMediaPreview(null); // Clear media preview
+      setIsLoading(true); // Show loading indicator
+
+      // Default API URL for Gemini
+      let apiUrl = "http://localhost:8000/generate";
+      const requestBody = {};
+
+      if (selectedOption === "Qwen") {
+        apiUrl = "http://localhost:8000/chat-huggingface"; // API URL for Qwen
+        requestBody.message = input; // Set message when Qwen is selected
+      } else {
+        requestBody.prompt = input; // Set prompt for Gemini
+      }
+
+      // If the selected option is Gemini, include the API key
+      if (selectedOption !== "Qwen") {
+        requestBody.api_key = "AIzaSyBJWK1kMs4SDGpV0NDk7UQs-k5Ggzf2DQM";
+      }
+
+      console.log("Request Body:", requestBody); // Log the request body
 
       try {
-        const response = await fetch("http://localhost:8000/generate", {
+        const response = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            api_key: "AIzaSyBJWK1kMs4SDGpV0NDk7UQs-k5Ggzf2DQM",
-            prompt: input,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
+        console.log("Response Status:", response.status); // Log the response status
+
         if (!response.ok) {
-          console.log(response);
+          const errorResponse = await response.json();
+          console.error("Error Response:", errorResponse); // Log the error response body
           throw new Error("Failed to generate response from the backend");
         }
 
         const data = await response.json();
-        setResultData(data.response);
+        setResultData(data.response); // Store the response in the state
         setRecentPrompt(input); // Store the input as the recent prompt
       } catch (error) {
-        toast.error(`Error: ${error.message}`);
+        toast.error(`Error: ${error.message}`); // Show an error toast
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Hide the loading indicator
       }
     }
   };
@@ -171,10 +185,20 @@ const Main = () => {
     const formData = new FormData();
     formData.append("file", selectedFile);
 
-    const apiUrl =
-      fileType === "video"
-        ? "http://localhost:8000/analyze-video"
-        : "http://localhost:8000/analyze-image";
+    let apiUrl;
+
+    // Change API based on selectedOption for file uploads
+    if (selectedOption === "Qwen") {
+      apiUrl =
+        fileType === "video"
+          ? "http://localhost:8000/analyze-video-huggingface" // API for video when Qwen is selected
+          : "http://localhost:8000/analyze-image-huggingface"; // API for image when Qwen is selected
+    } else {
+      apiUrl =
+        fileType === "video"
+          ? "http://localhost:8000/analyze-video" // Default API for video
+          : "http://localhost:8000/analyze-image"; // Default API for image
+    }
 
     try {
       const response = await fetch(apiUrl, {
@@ -196,7 +220,6 @@ const Main = () => {
       setIsLoading(false);
     }
   };
-
   const handleFileDelete = () => {
     setSelectedFile(null);
     setMediaPreview(null);
@@ -208,7 +231,7 @@ const Main = () => {
       <Sidebar setInput={setInput} setResponse={setSelectedPromptResponse} />
       <div className="main">
         <div className="nav">
-          <p>ChatBot</p>
+          <p>{selectedOption}Bot</p>
           <img src={assets.user_icon} alt="User Icon" />
         </div>
         <div className="main-container">
@@ -263,7 +286,6 @@ const Main = () => {
                         )}
                       </div>
                     )}
-                    {/* <img src={assets.gemini_icon} alt="Gemini Icon" /> */}
                     <p dangerouslySetInnerHTML={{ __html: resultData }}></p>
                   </>
                 )}
